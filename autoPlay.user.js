@@ -2,7 +2,7 @@
 // @name Ye Olde Megajump
 // @namespace https://github.com/YeOldeWH/MonsterMinigameWormholeWarp
 // @description A script that runs the Steam Monster Minigame for you.  Now with megajump.  Brought to you by the Ye Olde Wormhole Schemers and DannyDaemonic
-// @version 4.9.0.2
+// @version 5.0.1.2
 // @match *://steamcommunity.com/minigame/towerattack*
 // @match *://steamcommunity.com//minigame/towerattack*
 // @grant none
@@ -25,14 +25,14 @@ var medicOn100 = 1;
 var clicksOnBossLevel = 0;
 var upgThreshold = 100;
 
-var enableAutoClicker = getPreferenceBoolean("enableAutoClicker", true);
+var enableAutoClicker = true;
 
-var enableAutoUpgradeHP = getPreferenceBoolean("enableAutoUpgradeHP", true);
-var enableAutoUpgradeClick = getPreferenceBoolean("enableAutoUpgradeClick", true);
-var enableAutoUpgradeDPS = getPreferenceBoolean("enableAutoUpgradeDPS", false);
-var enableAutoUpgradeElemental = getPreferenceBoolean("enableAutoUpgradeElemental", false);
-var enableAutoPurchase = getPreferenceBoolean("enableAutoPurchase", false);
-var enableAutoBadgePurchase = getPreferenceBoolean("enableAutoBadgePurchase", true);
+var enableAutoUpgradeHP = true;
+var enableAutoUpgradeClick = true;
+var enableAutoUpgradeDPS = false;
+var enableAutoUpgradeElemental = true;
+var enableAutoPurchase = true;
+var enableAutoBadgePurchase = true;
 
 var removeInterface = getPreferenceBoolean("removeInterface", true); // get rid of a bunch of pointless DOM
 var removeParticles = getPreferenceBoolean("removeParticles", true);
@@ -354,13 +354,6 @@ function firstRun() {
 	var options1 = document.createElement("div");
 	options1.className = "options_column";
 
-	options1.appendChild(makeCheckBox("enableAutoClicker", "Enable AutoClicker", enableAutoClicker, toggleAutoClicker, false));
-	options1.appendChild(makeCheckBox("enableAutoUpgradeHP", "Enable AutoUpgrade HP", enableAutoUpgradeHP, toggleAutoUpgradeHP, false));
-	options1.appendChild(makeCheckBox("enableAutoUpgradeClick", "Enable AutoUpgrade Clicks", enableAutoUpgradeClick, toggleAutoUpgradeClick, false));
-	options1.appendChild(makeCheckBox("enableAutoUpgradeDPS", "Enable AutoUpgrade DPS", enableAutoUpgradeDPS, toggleAutoUpgradeDPS, false));
-	options1.appendChild(makeCheckBox("enableAutoUpgradeElemental", "Enable AutoUpgrade locked elemental", enableAutoUpgradeElemental, toggleAutoUpgradeElemental, false));
-	options1.appendChild(makeCheckBox("enableAutoPurchase", "Enable AutoPurchase Abilities", enableAutoPurchase, toggleAutoPurchase, false));
-	options1.appendChild(makeCheckBox("enableAutoBadgePurchase", "Enable AutoPurchase badges (WH strat)", enableAutoBadgePurchase, toggleAutoBadgePurchase, false));
 	options1.appendChild(makeCheckBox("removeInterface", "Remove interface", removeInterface, handleEvent, true));
 	options1.appendChild(makeCheckBox("removeParticles", "Remove particle effects", removeParticles, handleEvent, true));
 	options1.appendChild(makeCheckBox("removeFlinching", "Remove flinching effects", removeFlinching, handleEvent, true));
@@ -466,32 +459,25 @@ function MainLoop() {
 
 	if (!isAlreadyRunning) {
 		isAlreadyRunning = true;
-		
-		if (level % 100 == 0 ) {
-			/*
-			This section has been commented out intentionally, it is here should we ever choose to implement this feature.
-			This is not currently working.
-			It was going to swap to lane 1, then check if there was a boss there.  If so, change to lane 2.
-			Didnt want to be changing lanes forever.
-			Staying in the boss lane is fine, assuming no one using the script is clicking
-			Considered checking flags in various ways to see if had already done this check that level
-			
-			if( s().m_rgPlayerData.current_lane == 0 ) {
-				enemyData = s().GetEnemy(s().m_rgPlayerData.current_lane, s().m_rgPlayerData.target).m_data;
-					if(typeof enemyData !== "undefined"){
-						var enemyType = enemyData.type;
-						if(enemyType == ENEMY_TYPE.BOSS) {
-							advLog('In lane one, there is a boss, moving', 4);
-							s().TryChangeLane(1);
-						}
-					}	
-			
-			} else{
-				s().TryChangeLane(0); // put everyone in the same lane
-			}
-			*/
 
-			goToLaneWithBestTarget(level);
+		if ((level % 100 == 0) &&
+				(bHaveItem(ABILITIES.WORMHOLE) || bHaveItem(ABILITIES.LIKE_NEW) )) {
+			// On a WH level, jump everyone with wormholes to lane 0, unless there is a boss there, in which case jump to lane 1.
+			var targetLane = 0;
+			// Check lane 0, enemy 0 to see if it's a boss
+			var enemyData = s().GetEnemy(0, 0).m_data;
+			if(typeof enemyData !== "undefined"){
+				var enemyType = enemyData.type;
+				if(enemyType == ENEMY_TYPE.BOSS) {
+					advLog('In lane 0, there is a boss, avoiding', 4);
+					targetLane = 1;
+				}
+			}
+			if( s().m_rgPlayerData.current_lane != targetLane ) {
+				advLog('Moving player to wormhole lane ' + targetLane, 4);
+				s().TryChangeLane(targetLane); // put everyone in the same lane
+			}
+
 		} else {
 			goToLaneWithBestTarget(level);
 		}
@@ -636,14 +622,32 @@ function useAutoBadgePurchase() {
 
 	// id = ability
 	// ratio = how much of the remaining badges to spend
-	var abilityPriorityList = [
-		{ id: ABILITIES.WORMHOLE,   ratio: 1 },
-		{ id: ABILITIES.LIKE_NEW,   ratio: 0 },
-		{ id: ABILITIES.CRIT,       ratio: 1 },
-		{ id: ABILITIES.TREASURE,   ratio: 1 },
-		{ id: ABILITIES.PUMPED_UP,  ratio: 1 },
-	];
-
+	
+	//Note: this isn't an actual ratio, because badge points get reduced and the values don't add to 1
+	//For now, this is not a problem, but for stylistic reasons, should eventually be changed.
+	
+	//Regular users buy ratio
+	if(likeNewOn100 != 1){
+		var abilityPriorityList = [
+			{ id: ABILITIES.WORMHOLE,   ratio: 1 },
+			{ id: ABILITIES.LIKE_NEW,   ratio: 0 },
+			{ id: ABILITIES.CRIT,       ratio: 1 },
+			{ id: ABILITIES.TREASURE,   ratio: 1 },
+			{ id: ABILITIES.PUMPED_UP,  ratio: 1 },
+		];
+	}
+	
+	//Like New users buy ratio
+	if(likeNewOn100 == 1){
+		var abilityPriorityList = [
+			{ id: ABILITIES.WORMHOLE,   ratio: 0 },
+			{ id: ABILITIES.LIKE_NEW,   ratio: 1 },
+			{ id: ABILITIES.CRIT,       ratio: 1 },
+			{ id: ABILITIES.TREASURE,   ratio: 1 },
+			{ id: ABILITIES.PUMPED_UP,  ratio: 1 },
+		];
+	}
+	
 	var badgePoints = s().m_rgPlayerTechTree.badge_points;
 	var abilityData = s().m_rgTuningData.abilities;
 	var abilityPurchaseQueue = [];
@@ -698,9 +702,10 @@ function useAbilitiesAt100() {
 				return;
 			}
 			if (bHaveItem(ABILITIES.WORMHOLE)) triggerAbility(ABILITIES.WORMHOLE); //wormhole
-		}, 500);
+		}, 100);
 	}
 	
+	//This should equate to approximately 1.8 Like News per second
 	if (likeNewOn100) {
 		advLog("At level % 100 = 0, forcing the use of a like new", 2);
 		tryUsingAbility(ABILITIES.LIKE_NEW, false, true); //like new
@@ -1762,13 +1767,36 @@ function tryUsingAbility(itemId, checkInLane, forceAbility) {
 		return false;
 	}
 
-	triggerAbility(itemId);
+	var level = s().m_rgGameData.level + 1;
+	var needs_to_be_blocked = false;
+	var two_digit_level = level % 100;
+	
+	var needs_to_be_blocked = (BOSS_DISABLED_ABILITIES.indexOf(itemId) != -1);
+	
+	// must not use any damaging ability on boss levels
+	if (two_digit_level == 0 && needs_to_be_blocked) {
+		return false;
 
+	// Randomly Don't use this ability when we're getting close to the boss
+	// This avoids overflow damage 
+	} else if (two_digit_level > 90
+				&& needs_to_be_blocked
+				&& Math.random() < 0.8){
+		return false;
+	}
+	
+	triggerAbility(itemId);
+	
 	return true;
 }
 
 function triggerAbility(abilityId) {
-	s().m_rgAbilityQueue.push({'ability': abilityId});
+	if (abilityId === ABILITIES.WORMHOLE) {
+		// Fire this bad boy off immediately 
+		g_Server.UseAbilities($J.noop, $J.noop, {requested_abilities: [{ability: ABILITIES.WORMHOLE}]});
+	} else {
+		s().m_rgAbilityQueue.push({'ability': abilityId});
+	}
 
 	var nCooldownDuration = s().m_rgTuningData.abilities[abilityId].cooldown;
 	s().ClientOverride('ability', abilityId, Math.floor(Date.now() / 1000) + nCooldownDuration);
