@@ -12,6 +12,13 @@ This fork has:
 * Uses wormholes at optimal time
 * Disable most particles
 
+## What's new in version 5 (a.k.a. the *everything you know is wrong* edition) ##
+
+* Interface changes:  Many options have been removed; this should make things consistent.  Just relax and don't touch anything!  Autoclicking will be slowed as the boss level draws near.
+* No more *Like New* purchases are also intentional.  A small number of people in the group are purchasing the *Like New* upgrades; all we need are the Wormholes.
+* Nukes will be used automatically outside of levels that include Our Great and Powerful Gold Helmed Overlord.
+* Off-laning on the x00 boss level allows players to spam Wormholes and Like News without players getting free Nuke charges, as well as keeping the autoclick DPS off of the boss.
+* Wormhole counter isn't updating during x00 is due to a change in the way we use Wormholes.  So fast.
 
 ## Features ##
 
